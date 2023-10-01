@@ -1,0 +1,119 @@
+---
+title: "R Notebook"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+```{r}
+install.packages("diffusion")
+```
+```{r}
+tinytex::install_tinytex()
+```
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(ggpubr)
+library(diffusion)
+```
+
+
+Homework 1
+1. Go to the list, choose an innovation, and put the link of the selected product
+
+Innovation: Nothing Phone (1)
+Link: https://time.com/collection/best-inventions-2022/6229115/nothing-phone-1/
+
+2. Think about look-alike innovation from the past. When you pick one, give your justifications in 1-2 paragraphs.
+
+The product that I chose is "Nothing Phone(1)". Having a design reminiscent of the iPhone and featuring a customized version of the Android operating system, what sets Phone (1) apart is its distinctive "glyph interface." The phone's transparent back panel enables the use of 900 LEDs to produce illuminated patterns that synchronize with music, notifications, and vibrations. Users have the ability to personalize these flashing glyph patterns, making them serve functions such as identifying incoming callers.. So I decided to choose my look-alike model to be Samsung phones. So I decided to take Samsung phones as the predecessor of "Nothing Phone(1)" and make predictions on it.
+
+3. Go to Statista (the University provides access to it) and find a time series that approximates the look-alike innovation. (the University provides access to it under AUA WIFI.) or find a time series matching the look-alike innovation. Give your justification by 1-3 paragraphs. You can also use any other available resource for the data; remember to provide a reference.
+
+```{r}
+smart = read.csv('gss.csv', fileEncoding="UTF-8-BOM")
+samsung <- select(smart, Quarter, Samsung)
+samsung
+
+```
+```{r}
+ggplot(data = samsung, aes(x = Quarter, y = Samsung))+
+geom_bar(stat = 'identity') +
+ggtitle('Samsung sales, mln units')
+```
+According to the plot above the Samsung sales decreased in the last quarter of 2018 and in the middle of 2020. It can be influenced by many factors like economic conditions, market saturation and so on. Now let's go on and see how this data can help to make predictions on a new product.
+
+```{r}
+Samsung_sales_mln_units <- c(sum(smart$Samsung[1:4])/1000000, sum(smart$Samsung[5:8])/1000000, sum(smart$Samsung[9:11])/1000000)
+df <- data.frame(Year=c(2018,2019,2020),Samsung_sales_mln_units)
+df
+
+```
+
+
+4. Estimate Bass model parameters for the look-alike innovation.
+
+```{r}
+ggplot(data = df, aes(x = Year, y = Samsung_sales_mln_units)) +
+geom_bar(stat = 'identity') +
+ggtitle('Samsung sales, mln units')
+```
+```{r}
+bass.f <- function(t,p,q){
+((p+q)**2/p)*exp(-(p+q)*t)/
+(1+(q/p)*exp(-(p+q)*t))**2
+}
+
+bass.F <- function(t,p,q){
+(1-exp(-(p+q)*t))/
+(1+(q/p)*exp(-(p+q)*t))
+}
+```
+
+```{r}
+time_ad = ggplot(data.frame(t = c(1:14)), aes(t)) +
+stat_function(fun = bass.f, args = c(p=0.1, q=0.25)) +
+labs(title = 'f(t)')
+
+sm_sales = ggplot(data = df, aes(x = Year, y = Samsung_sales_mln_units)) +
+geom_bar(stat = 'identity') + ggtitle('Samsung sales, mln units')
+
+ggarrange(time_ad, sm_sales)
+
+```
+```{r}
+diff_m = diffusion(df$Samsung_sales_mln_units)
+p=round(diff_m$w,4)[1]
+q=round(diff_m$w,4)[2]
+m=round(diff_m$w,4)[3] 
+diff_m
+```
+```{r}
+data.frame(Predicted=log(q/p)/(p+q),
+Actual=which.max(df$Samsung_sales_mln_units))
+```
+5. Make predictions of the diffusion of the innovation you chose at stage 1
+```{r}
+df$pred_sales = bass.f(1:3, p = 0.005, q = 0.369)*933.4705
+ggplot(data = df, aes(x = Year, y = Samsung_sales_mln_units)) +
+geom_bar(stat = 'identity') +
+geom_point(mapping = aes(x=Year, y=Samsung_sales_mln_units), color = 'red')
+```
+6.Estimate the number of adopters by period. Thus, you will need to estimate the potential market share. You can use Fermi’s logic here as well.
+
+To me this phone offers opportunities that do not really solve problems but are fancier than Apple and Samsung models. So estimating on a country level Armenia has population of 3 million and around 20% of it are youngsters aged 16-30, so the number of people that are possibly interested in this product(Market potential) is around 600000.
+
+```{r}
+M <- 36000
+t = c(1:3)
+Armenian_Adopters <- ((((p+q)**2/p)*exp(-(p+q)*t))/(1+(q/p)*exp(-(p+q)*t))**2) *M
+Armenian_Adopters
+```
+##References
+1. Lindzon, J. (2022, November 10). Innovative smartphone design. Time. https://time.com/collection/best-inventions-2022/6229115/nothing-phone-1/
+2. Global Phone Sales By Company Samsung Apple Huawei. (2021, January 13). Kaggle. https://www.kaggle.com/datasets/andrewtgraham/global-phone-sales-by-company-samsung-apple-huawei
+3.Statista. (2023, July 21). Age structure in Armenia 2021. https://www.statista.com/statistics/440546/age-structure-in-armenia/
+
+
